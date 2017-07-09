@@ -24,7 +24,7 @@ namespace EditorClass
 
             DestroyImmediate(GameObject.Find(name));
             _pramaObj = new GameObject(name, cls);
-            _pramaObj.hideFlags = HideFlags.DontSaveInEditor;
+            _pramaObj.hideFlags = HideFlags.DontSave;
         }
 
         protected virtual void OnEnable()

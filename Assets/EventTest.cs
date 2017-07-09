@@ -14,23 +14,30 @@ public class EventTest : MonoBehaviour
     {
         Selection.selectionChanged += Selected;
         cam = Camera.main;
+
+        Object[] objs = new Object[4];
+        for (int i = 0; i < 4; i++)
+        {           
+            objs[i] = GameObject.Find("Cube" + i);
+        }
+        DragAndDrop.objectReferences = objs;
     }
 
     Color bgColor = new Color(56, 56, 56, 0);
 
     void OnEnable()
     {
-        transform.position = selected.transform.position;
-        transform.eulerAngles = new Vector3(10, 30, 0);
+        //transform.position = selected.transform.position;
+        //transform.eulerAngles = new Vector3(10, 30, 0);
 
-        cam.orthographic = true;
-        cam.backgroundColor = bgColor;
+        //cam.orthographic = true;
+        //cam.backgroundColor = bgColor;
         //cam.cullingMask = 
     }
 
     void Update()
     {
-
+         
     }
 
     public void Selected()

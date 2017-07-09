@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
+# Visual Studio 2015
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SceneEditor.CSharp", "SceneEditor.CSharp.csproj", "{8CC0567A-D3E1-9A22-4F79-EE31A406988F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SceneEditor.CSharp.Editor", "SceneEditor.CSharp.Editor.csproj", "{F11FF24A-4B58-E49A-E038-790C173CA7ED}"

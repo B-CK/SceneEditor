@@ -32,7 +32,7 @@ namespace EditorClass
         {
             window = (BuildingBlocksWindow)GetWindow(typeof(BuildingBlocksWindow));
             window.titleContent = new GUIContent("场景管理器", EditorGUIUtility.FindTexture("Navigation"));
-            UnityEngine.Object.DontDestroyOnLoad(window);
+            DontDestroyOnLoad(window);
             window.minSize = window._winMinSize;
             window.maxSize = window._winMaxSize;
             BlocksWindowPosition.size = Vector2.right * 800f;
@@ -40,8 +40,8 @@ namespace EditorClass
             window.autoRepaintOnSceneChange = true;
             window.Show();
 
-            window._mapGridObj = new GameObject("__Map Grid");
-            window._mapGridObj.hideFlags = HideFlags.DontSave;
+            window._mapGridObj = new GameObject("Map Grid");
+            window._mapGridObj.hideFlags = HideFlags.DontSave | HideFlags.NotEditable;
             window._mapGridObj.AddComponent<MapGrid>();
         }
         protected override void OnDisable()
@@ -65,9 +65,9 @@ namespace EditorClass
         }
         public int _sceneSizeX = 30;
         public int _sceneSizeZ = 30;
-        public int _sceneSizeY = 0;
         public Dictionary<string, int> _counterDic = new Dictionary<string, int>();
         public Vector3 _cubeSize = Vector3.one;
+        public float _prefabAngle = 90f;
         #endregion
 
         #region 界面元素变量
@@ -98,6 +98,7 @@ namespace EditorClass
 
         public SPEditorLabel _cubeSizeLabel;
         public SPEditorLabel _cubeGridSizeLabel;
+        public SPEditorLabel _cubeAngleLabel;
         public SPEditorLabel _sceneNameLabel;
 
         public SPEditorArea _sceneInfoArea;
@@ -140,18 +141,19 @@ namespace EditorClass
             _cubeSizeLabel = new SPEditorLabel();
             _cubeGridSizeLabel = new SPEditorLabel();
             _sceneNameLabel = new SPEditorLabel();
+            _cubeAngleLabel = new SPEditorLabel();
             GUIStyle nameStyle = new GUIStyle();
             nameStyle.alignment = TextAnchor.MiddleCenter;
             nameStyle.fontStyle = FontStyle.Bold;
             nameStyle.fontSize = 13;
-            nameStyle.contentOffset = Vector2.up * 6;
+            nameStyle.contentOffset = Vector2.up * 0;
             float value = 180 / 255f;
             nameStyle.normal.textColor = new Color(value, value, value, 255f);
             nameStyle.name = "--- 场景名称 ---";
             _sceneNameLabel._style = nameStyle;
 
             _sceneInfoArea = new SPEditorArea();
-            _sceneInfoArea._rect = new Rect(0, 70, _sceneBgArea._rect.width, 100);
+            _sceneInfoArea._rect = new Rect(0, 75, _sceneBgArea._rect.width, 100);
 
             _sceneInfoScroll = new SPEditorScrollView();
 
@@ -249,23 +251,27 @@ namespace EditorClass
         {
             GUILayout.BeginHorizontal();
             _cubeSizeLabel._style = new GUIStyle(EditorStyles.label);
-            _cubeSizeLabel._style.name = "方阵元素尺寸";
+            _cubeSizeLabel._style.name = "格子尺寸";
             _cubeSizeLabel.Draw();
             float cubeSizeX = EditorGUILayout.FloatField(_cubeSize.x);
-            float cubeSizeY = EditorGUILayout.FloatField(_cubeSize.y);
             float cubeSizeZ = EditorGUILayout.FloatField(_cubeSize.z);
-            _cubeSize = new Vector3(cubeSizeX, cubeSizeY, cubeSizeZ);
+            _cubeSize = new Vector3(cubeSizeX, 0, cubeSizeZ);
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
             _cubeGridSizeLabel._style = new GUIStyle(EditorStyles.label);
-            _cubeGridSizeLabel._style.name = "方阵规格";
+            _cubeGridSizeLabel._style.name = "矩阵规格";
             _cubeGridSizeLabel.Draw();
-            int x = EditorGUILayout.IntField(_sceneSizeX);
+            _sceneSizeX = EditorGUILayout.IntField(_sceneSizeX);
             GUILayout.Label("X", EditorStyles.label);
-            int z = EditorGUILayout.IntField(_sceneSizeZ);
-            _sceneSizeX = x;
-            _sceneSizeZ = z;
+            _sceneSizeZ = EditorGUILayout.IntField(_sceneSizeZ);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            _cubeAngleLabel._style = new GUIStyle(EditorStyles.label);
+            _cubeAngleLabel._style.name = "预制角度";
+            _cubeAngleLabel.Draw();
+            _prefabAngle = EditorGUILayout.FloatField(_prefabAngle);
             GUILayout.EndHorizontal();
 
             _sceneNameLabel.Draw();
@@ -296,18 +302,14 @@ namespace EditorClass
         }
         void BlocksMenu(int index)
         {
-            Debug.Log("BlocksMenu");
-            //AssetPreview.SetPreviewTextureCacheSize(_blockPage.Count);
             if (index != _blockMenuIndex)
             {
-                _blockMenuIndex = index;
-                Debug.Log("材质界面 - " + _blockMenuIndex);
-
+                _blockMenuIndex = index;           
                 _blockPage.Clear();
                 SetBlockMenu();
             }
 
-           
+
             //界面绘制
             _prefabsScroll.Draw(() =>
             {
@@ -325,13 +327,13 @@ namespace EditorClass
                         if (amount >= _blockPage.Count)
                             break;
                         BlockItem item = _blockPage[amount];
-                        //_needRepaint |= item.texture == null;
                         item.texture = item.texture == null ? GeneratePreview(item.prefab) : item.texture;
                         bool isClick = GUILayout.Button(item.texture,
                             GUILayout.Width(_prefabBtn._rect.width),
                             GUILayout.Height(_prefabBtn._rect.width));
                         //砖块点击事件处理
-                        //TODO
+                        //HandleDragAndDrop(item.prefab);
+                        Debug.Log("id: " + GUIUtility.hotControl);             
                     }
                     GUILayout.EndHorizontal();
                 }
@@ -365,30 +367,40 @@ namespace EditorClass
         Texture GeneratePreview(GameObject prefab)
         {
             int id = prefab.GetInstanceID();
-            Debug.Log(id);
-            if (AssetPreview.IsLoadingAssetPreview(id)) return null;
             Texture tex = AssetPreview.GetAssetPreview(prefab);
+            if (AssetPreview.IsLoadingAssetPreview(id)) return null;
             return tex;
         }
-
-        bool _needRepaint = false;
-        //void OnInspectorUpdate()
-        //{
-        //    if (!_needRepaint) return;
-
-        //    for (int i = 0; i < _blockPage.Count; i++)
-        //    {
-        //        BlockItem item = _blockPage[i];
-        //        _needRepaint |= item.texture == null;
-        //        if (!_needRepaint)
-        //        {
-        //            Repaint();
-        //            break;
-        //        }
-
-        //        item.texture = GeneratePreview(item.prefab);
-        //    }
-        //}
+        void HandleDragAndDrop(GameObject prefab)
+        {
+            Event current = Event.current;
+            if (current.type == EventType.Layout || current.type == EventType.Repaint || current.type == EventType.used) return;
+            if (GUIUtility.hotControl != 0 && Event.current.type == EventType.MouseDown && Event.current.button == 0)
+            {
+                DragAndDrop dragAndDrop = (DragAndDrop)GUIUtility.GetStateObject(typeof(DragAndDrop), DragAndDrop.activeControlID);
+                DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+            }
+            if (GUIUtility.hotControl != 0 && Event.current.type == EventType.MouseDrag && Event.current.button == 0)
+            {
+                DragAndDrop dragAndDrop = (DragAndDrop)GUIUtility.GetStateObject(typeof(DragAndDrop), DragAndDrop.activeControlID);
+              //  UnityEditorInternal.InternalEditorUtility.SceneViewDrag
+                    //object obj = (getDataForDraggingFunction != null) ? getDataForDraggingFunction(columnViewElements[listView.row].value) : null;
+                    //if (obj == null)
+                    //{
+                    //    return;
+                    //}
+                    //DragAndDrop.PrepareStartDrag();
+                    //DragAndDrop.objectReferences = new UnityEngine.Object[0];
+                    //DragAndDrop.paths = null;
+                    //DragAndDrop.SetGenericData("CustomDragData", obj);
+                    //DragAndDrop.StartDrag(columnViewElements[listView.row].name);
+                    //Event.current.Use();
+            }
+            //switch (current.type)
+            //{
+            //     case EventType.DragPerform
+            //}
+        }
         #endregion
     }
 }
