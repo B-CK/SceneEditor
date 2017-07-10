@@ -30,9 +30,9 @@ namespace EditorClass
 
         public static void Init()
         {
-            window = (BuildingBlocksWindow)GetWindow(typeof(BuildingBlocksWindow));
+            window = (BuildingBlocksWindow)GetWindow<BuildingBlocksWindow>(false, "场景管理器", true);
             window.titleContent = new GUIContent("场景管理器", EditorGUIUtility.FindTexture("Navigation"));
-            UnityEngine.Object.DontDestroyOnLoad(window);
+            DontDestroyOnLoad(window);
             window.minSize = window._winMinSize;
             window.maxSize = window._winMaxSize;
             BlocksWindowPosition.size = Vector2.right * 800f;
@@ -40,8 +40,8 @@ namespace EditorClass
             window.autoRepaintOnSceneChange = true;
             window.Show();
 
-            window._mapGridObj = new GameObject("__Map Grid");
-            window._mapGridObj.hideFlags = HideFlags.DontSave;
+            window._mapGridObj = new GameObject("Map Grid");
+            window._mapGridObj.hideFlags = HideFlags.DontSave | HideFlags.NotEditable;
             window._mapGridObj.AddComponent<MapGrid>();
         }
         protected override void OnDisable()
@@ -53,9 +53,8 @@ namespace EditorClass
             _blocksDic.Clear();
             _blockPage.Clear();
             DestroyImmediate(_mapGridObj);
-            Caching.CleanCache();
+            Resources.UnloadUnusedAssets();
         }
-
 
         #region 界面参数
         public string SceneName
@@ -65,9 +64,9 @@ namespace EditorClass
         }
         public int _sceneSizeX = 30;
         public int _sceneSizeZ = 30;
-        public int _sceneSizeY = 0;
         public Dictionary<string, int> _counterDic = new Dictionary<string, int>();
         public Vector3 _cubeSize = Vector3.one;
+        public float _prefabAngle = 90f;
         #endregion
 
         #region 界面元素变量
@@ -98,6 +97,7 @@ namespace EditorClass
 
         public SPEditorLabel _cubeSizeLabel;
         public SPEditorLabel _cubeGridSizeLabel;
+        public SPEditorLabel _cubeAngleLabel;
         public SPEditorLabel _sceneNameLabel;
 
         public SPEditorArea _sceneInfoArea;
@@ -107,7 +107,10 @@ namespace EditorClass
         public SPEditorArea _prefabBgArea;
         public SPEditorButton _prefabBtn;
         public SPEditorScrollView _prefabsScroll;
-        public float _blockBtnGrap = 5f;
+
+        const int _cellPadding = 4;
+        const int _cellSize = 50;
+        Vector2 _mPos = Vector2.zero;
 
         class BlockItem
         {
@@ -127,7 +130,7 @@ namespace EditorClass
             base.OnEnable();
 
             _sceneBgArea = new SPEditorArea();
-            _sceneBgArea._rect = new Rect(0, 0, 250, 4000);
+            _sceneBgArea._rect = new Rect(0, 0, 250, Screen.height);
 
             float menuHeight = 20;
             _sceneMenuArea = new SPEditorArea();
@@ -140,26 +143,28 @@ namespace EditorClass
             _cubeSizeLabel = new SPEditorLabel();
             _cubeGridSizeLabel = new SPEditorLabel();
             _sceneNameLabel = new SPEditorLabel();
+            _cubeAngleLabel = new SPEditorLabel();
             GUIStyle nameStyle = new GUIStyle();
             nameStyle.alignment = TextAnchor.MiddleCenter;
             nameStyle.fontStyle = FontStyle.Bold;
             nameStyle.fontSize = 13;
-            nameStyle.contentOffset = Vector2.up * 6;
+            nameStyle.contentOffset = Vector2.up * 0;
             float value = 180 / 255f;
             nameStyle.normal.textColor = new Color(value, value, value, 255f);
             nameStyle.name = "--- 场景名称 ---";
             _sceneNameLabel._style = nameStyle;
 
             _sceneInfoArea = new SPEditorArea();
-            _sceneInfoArea._rect = new Rect(0, 70, _sceneBgArea._rect.width, 100);
+            _sceneInfoArea._rect = new Rect(0, 75, _sceneBgArea._rect.width, 100);
 
             _sceneInfoScroll = new SPEditorScrollView();
 
             //预制菜单
             _prefabBgArea = new SPEditorArea();
-            _prefabBgArea._rect = new Rect(_sceneBgArea._rect.width, 0, position.width - _sceneBgArea._rect.width, 300);
+            _prefabBgArea._rect = new Rect(_sceneBgArea._rect.width, 0, Screen.width - _sceneBgArea._rect.width, 200f);
+            Debug.Log(Screen.height);
             _prefabBtn = new SPEditorButton();
-            _prefabBtn._rect = new Rect(Vector2.zero, Vector2.one * 50f);
+            _prefabBtn._rect = new Rect(Vector2.zero, Vector2.one * _cellSize);
             _prefabsScroll = new SPEditorScrollView();
             _blockPathsDic.Clear();
             _blocksTypes.Clear();
@@ -214,12 +219,13 @@ namespace EditorClass
             });
 
             //预制菜单
+            int blocksMenuIndex = 0;
             _prefabBgArea._rect.width = position.width - _sceneBgArea._rect.width;
             _prefabBgArea.Draw(() =>
             {
-                int blocksMenuIndex = GUILayout.SelectionGrid(_blockMenuIndex, _blocksTypes.ToArray(), _blocksTypes.Count, EditorStyles.toolbarButton);
-                BlocksMenu(blocksMenuIndex);
+                blocksMenuIndex = GUILayout.SelectionGrid(_blockMenuIndex, _blocksTypes.ToArray(), _blocksTypes.Count, EditorStyles.toolbarButton);
             });
+            BlocksMenu(blocksMenuIndex);
         }
 
         void OnClickSceneMenu(int index)
@@ -249,23 +255,27 @@ namespace EditorClass
         {
             GUILayout.BeginHorizontal();
             _cubeSizeLabel._style = new GUIStyle(EditorStyles.label);
-            _cubeSizeLabel._style.name = "方阵元素尺寸";
+            _cubeSizeLabel._style.name = "格子尺寸";
             _cubeSizeLabel.Draw();
             float cubeSizeX = EditorGUILayout.FloatField(_cubeSize.x);
-            float cubeSizeY = EditorGUILayout.FloatField(_cubeSize.y);
             float cubeSizeZ = EditorGUILayout.FloatField(_cubeSize.z);
-            _cubeSize = new Vector3(cubeSizeX, cubeSizeY, cubeSizeZ);
+            _cubeSize = new Vector3(cubeSizeX, 0, cubeSizeZ);
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
             _cubeGridSizeLabel._style = new GUIStyle(EditorStyles.label);
-            _cubeGridSizeLabel._style.name = "方阵规格";
+            _cubeGridSizeLabel._style.name = "矩阵规格";
             _cubeGridSizeLabel.Draw();
-            int x = EditorGUILayout.IntField(_sceneSizeX);
+            _sceneSizeX = EditorGUILayout.IntField(_sceneSizeX);
             GUILayout.Label("X", EditorStyles.label);
-            int z = EditorGUILayout.IntField(_sceneSizeZ);
-            _sceneSizeX = x;
-            _sceneSizeZ = z;
+            _sceneSizeZ = EditorGUILayout.IntField(_sceneSizeZ);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            _cubeAngleLabel._style = new GUIStyle(EditorStyles.label);
+            _cubeAngleLabel._style.name = "预制角度";
+            _cubeAngleLabel.Draw();
+            _prefabAngle = EditorGUILayout.FloatField(_prefabAngle);
             GUILayout.EndHorizontal();
 
             _sceneNameLabel.Draw();
@@ -296,44 +306,48 @@ namespace EditorClass
         }
         void BlocksMenu(int index)
         {
-            Debug.Log("BlocksMenu");
-            //AssetPreview.SetPreviewTextureCacheSize(_blockPage.Count);
             if (index != _blockMenuIndex)
             {
                 _blockMenuIndex = index;
-                Debug.Log("材质界面 - " + _blockMenuIndex);
-
                 _blockPage.Clear();
                 SetBlockMenu();
             }
 
-           
-            //界面绘制
+
+            ////界面绘制
             _prefabsScroll.Draw(() =>
             {
-                float areaWidth = _prefabBgArea._rect.width;
+                float areaWidth = _prefabBgArea._rect.width - _cellPadding;
                 float areaHeight = _prefabBgArea._rect.height;
-                float btnWidth = _prefabBtn._rect.width;
-                int xNum = Mathf.FloorToInt((areaWidth - _blockBtnGrap) / (_blockBtnGrap + btnWidth));
+                int xNum = Mathf.FloorToInt((areaWidth) / (_cellPadding + _cellSize));
                 int yNum = Mathf.CeilToInt(_blockPage.Count / xNum);
+                float px = _cellPadding;
+                float py = _cellPadding;
+                int spacingX = _cellSize + _cellPadding;
+                int spacingY = spacingX;
                 for (int y = 0; y < yNum + 1; y++)
                 {
-                    GUILayout.BeginHorizontal();
                     for (int x = 0; x < xNum; x++)
                     {
                         int amount = y * xNum + x;
                         if (amount >= _blockPage.Count)
                             break;
                         BlockItem item = _blockPage[amount];
-                        //_needRepaint |= item.texture == null;
                         item.texture = item.texture == null ? GeneratePreview(item.prefab) : item.texture;
-                        bool isClick = GUILayout.Button(item.texture,
-                            GUILayout.Width(_prefabBtn._rect.width),
-                            GUILayout.Height(_prefabBtn._rect.width));
-                        //砖块点击事件处理
-                        //TODO
+
+                        Rect rect = new Rect(px, py, _cellSize, _cellSize - 1);
+                        if (GUI.Button(rect, item.texture))
+                        {
+                            //砖块点击事件处理               
+                            //HandleDragAndDrop(item.prefab);
+                        }
+                        px += spacingX;
+                        if (px + spacingX > areaWidth)
+                        {
+                            py += spacingY;
+                            px = _cellPadding;
+                        }
                     }
-                    GUILayout.EndHorizontal();
                 }
             });
         }
@@ -365,30 +379,94 @@ namespace EditorClass
         Texture GeneratePreview(GameObject prefab)
         {
             int id = prefab.GetInstanceID();
-            Debug.Log(id);
-            if (AssetPreview.IsLoadingAssetPreview(id)) return null;
             Texture tex = AssetPreview.GetAssetPreview(prefab);
+            if (AssetPreview.IsLoadingAssetPreview(id)) return null;
             return tex;
         }
+        void HandleDragAndDrop(GameObject prefab)
+        {
+            return;
+            Event current = Event.current;
+            switch (current.type)
+            {
+                case EventType.MouseDown:
+                    Debug.Log("" + DragAndDrop.objectReferences == null + "    " + DragAndDrop.objectReferences.Length);
+                    Debug.Log(current.type);
+                    break;
+                case EventType.MouseUp:
+                    DragAndDrop.PrepareStartDrag();
+                    break;
+                case EventType.MouseDrag:
+                    //Debug.Log(current.type);
+                    DragAndDrop.StartDrag("Prefab Tool");
+                    current.Use();
+                    break;
+                case EventType.DragUpdated:
+                    DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+                    current.Use();
+                    break;
+                case EventType.DragPerform:
+                    Debug.Log(current.type);
+                    current.Use();
+                    break;
+                case EventType.DragExited:
+                case EventType.Ignore:
+                    break;
+            }
 
-        bool _needRepaint = false;
-        //void OnInspectorUpdate()
-        //{
-        //    if (!_needRepaint) return;
+            //Debug.Log(DragAndDrop.objectReferences.Length);
+            return;
+            GameObject dragged = DraggedObject;
+            bool isDragging = (dragged != null);
 
-        //    for (int i = 0; i < _blockPage.Count; i++)
-        //    {
-        //        BlockItem item = _blockPage[i];
-        //        _needRepaint |= item.texture == null;
-        //        if (!_needRepaint)
-        //        {
-        //            Repaint();
-        //            break;
-        //        }
+            switch (current.type)
+            {
+                case EventType.DragUpdated:
+                    break;
+                case EventType.DragPerform:
+                    break;
+                case EventType.DragExited:
+                case EventType.Ignore:
+                    break;
+            }
 
-        //        item.texture = GeneratePreview(item.prefab);
-        //    }
-        //}
+        }
+        GameObject DraggedObject
+        {
+            get
+            {
+                if (DragAndDrop.objectReferences == null) return null;
+                if (DragAndDrop.objectReferences.Length == 1) return DragAndDrop.objectReferences[0] as GameObject;
+                return null;
+            }
+            set
+            {
+                if (value != null)
+                {
+                    DragAndDrop.PrepareStartDrag();
+                    DragAndDrop.objectReferences = new UnityEngine.Object[1] { value };
+                    DraggedObjectIsOurs = true;
+                }
+                else DragAndDrop.AcceptDrag();
+            }
+        }
+        bool DraggedObjectIsOurs
+        {
+            get
+            {
+                object obj = DragAndDrop.GetGenericData("Prefab Tool");
+                if (obj == null) return false;
+                return (bool)obj;
+            }
+            set
+            {
+                DragAndDrop.SetGenericData("Prefab Tool", value);
+            }
+        }
+        bool IsClick()
+        {
+            return false;
+        }
         #endregion
     }
 }

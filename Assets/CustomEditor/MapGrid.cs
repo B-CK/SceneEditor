@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditorInternal;
 using UnityScript;
 using System.Collections;
+using UnityEngine.EventSystems;
 
 namespace EditorClass
 {
@@ -17,10 +18,17 @@ namespace EditorClass
         BuildingBlocksWindow _window;
 
         readonly Vector3 _origin = Vector3.one * 2000f;
-        readonly float _grap = 0.025f;
 
         GameObject _selectedObj;
         SceneView _currentView;
+        Vector3 _mounseWorldPos;
+        Plane _plane;
+        bool _isPaste = false;
+        EventType _eventType = EventType.Ignore;
+
+        //=====>>>后期优化功能
+        //对场景上的类容进行管理
+        //对象名均添加格子编号,编号重复则删除
 
         void Awake()
         {
@@ -37,78 +45,132 @@ namespace EditorClass
             _currentView.AlignViewToObject(go.transform);
             DestroyImmediate(go);
 
-            transform.position = Vector3.one * 10000f;
             _window = BuildingBlocksWindow.window;
 
             Selection.selectionChanged += OnSelected;
-        }
+            SceneView.onSceneGUIDelegate += OnSceneItemDrag;
 
-        public void OnSelected()
-        {
-            _selectedObj = Selection.activeGameObject;
-            if (_selectedObj == null) return;
-            //Debug.Log(_selectedObj.name);
+            _plane = new Plane(Vector3.up * _origin.y, -_origin.y);
         }
         void OnDestroy()
         {
             Selection.selectionChanged -= OnSelected;
+            SceneView.onSceneGUIDelegate -= OnSceneItemDrag;
+            _currentView.Repaint();
         }
         void OnEnable()
         {
             _window = BuildingBlocksWindow.window;
         }
+
         void OnDrawGizmos()
         {
             if (_window == null) return;
 
+            //Gizmos.color = Color.red;
+            //Gizmos.DrawSphere(_origin, 0.1f);
+            Gizmos.color = Color.black;
+            Gizmos.DrawSphere(_mounseWorldPos, 0.2f);
+            if (_selectedObj != null)
+            {
+                Debug.Log("OnDrawGizmos : " + _mounseWorldPos);
+            }
+
+
             Vector3 size = _window._cubeSize;
-            int y = _window._sceneSizeY;
-            Gizmos.color = Color.green - Color.black * 0.7f;
+            //Gizmos.color = Color.green - Color.black * 0.7f;
             for (int x = 0; x < _window._sceneSizeX; x++)
             {
                 for (int z = 0; z < _window._sceneSizeZ; z++)
                 {
-                    Vector3 center = _origin + new Vector3(x, y, z);
-                    float halfW = (size.x - _grap) / 2;
-                    float halfH = (size.y - _grap) / 2;
+                    Vector3 center = _origin + new Vector3(x * size.x, 0, z * size.z);
+                    float halfX = (size.x) / 2;
+                    float halfZ = (size.z) / 2;
 
-                    Vector3 one = center + new Vector3(halfW, 0, halfH);
-                    Vector3 two = center + new Vector3(-halfW, 0, halfH);
-                    Vector3 thr = center + new Vector3(-halfW, 0, -halfH);
-                    Vector3 fou = center + new Vector3(halfW, 0, -halfH);
-                    Gizmos.DrawLine(one, two);
-                    Gizmos.DrawLine(two, thr);
-                    Gizmos.DrawLine(thr, fou);
-                    Gizmos.DrawLine(fou, one);
+                    Gizmos.color = Color.red;
+                    Gizmos.DrawSphere(center, 0.1f);
+                    Gizmos.color = Color.green - Color.black * 0.7f;
+
+                    Vector3 p1 = center + new Vector3(halfX, 0, halfZ);
+                    Vector3 p2 = center + new Vector3(-halfX, 0, halfZ);
+                    Vector3 p3 = center + new Vector3(-halfX, 0, -halfZ);
+                    Vector3 p4 = center + new Vector3(halfX, 0, -halfZ);
+                    Gizmos.DrawLine(p1, p2);
+                    Gizmos.DrawLine(p2, p3);
+                    Gizmos.DrawLine(p3, p4);
+                    Gizmos.DrawLine(p4, p1);
+                }
+            }
+        }
+        void OnSelected()
+        {
+            _selectedObj = Selection.activeGameObject;
+            //if (_selectedObj == null) return;
+            //Debug.Log(_selectedObj.name);
+        }
+        void OnSceneItemDrag(SceneView view)
+        {
+            Event current = Event.current;
+            if (current.type == EventType.Layout || current.type == EventType.Repaint || current.type == EventType.used) return;
+            Vector3 direction = view.camera.transform.forward;
+            Vector3 position = view.camera.transform.position;
+            Ray ray = HandleUtility.GUIPointToWorldRay(current.mousePosition);
+            float distance;
+            bool res = _plane.Raycast(ray, out distance);
+            if (res)
+            {
+                switch (current.type)
+                {
+                    case EventType.MouseDrag://以格子为单位拖动    
+                    case EventType.MouseDown://放置粘贴对象
+                        {
+                            _mounseWorldPos = ray.GetPoint(distance);
+                            if (_selectedObj != null && current.button == 0)
+                                _eventType = current.type;
+                            
+                            break;
+                        }
+                    //case EventType.ExecuteCommand:
+                    //    {
+                    //        switch (current.commandName)
+                    //        {
+                    //            case "Paste"://小黑球所在区粘贴
+                    //            case "Duplicate"://须指定坐标
+                    //                _mounseWorldPos = ray.GetPoint(distance);
+                    //                _eventType = EventType.MouseMove;
+                    //                _isPaste = true;
+                    //                break;
+                    //        }
+                    //        break;
+                    //    }
+                    default: _eventType = EventType.Ignore; break;
                 }
             }
         }
         void Update()
         {
-            Vector3 mpos = _currentView.camera.ScreenToWorldPoint(Input.mousePosition);
-            Debug.Log(mpos);
-            //if (_selectedObj == null) return;
-            //Debug.Log(_selectedObj.name);
-            return;
-            if (_window == null || _selectedObj == null) return;
+            if (_selectedObj == null) return;
 
-            Vector3 position = _currentView.camera.ScreenToWorldPoint(Input.mousePosition);
-            position.y = _window._sceneSizeY;
-
-            //多种个格子站位计算(1个格子)
-            //TODO
-            Vector3 cube = _selectedObj.transform.position;
-            cube.y = _window._sceneSizeY;      
-
-
-
-            _selectedObj.transform.position = position;
+            switch (_eventType)
+            {
+                case EventType.MouseDrag:
+                case EventType.MouseDown:
+                    _selectedObj.transform.position = CalcGridPos();
+                    break;
+                case EventType.Ignore: break;
+            }
+            _eventType = EventType.Ignore;
         }
-        
-        Vector3 GetGridPos(Vector3 pos)
+        Vector3 CalcGridPos()
         {
+            Vector3 size = _window._cubeSize;
+            Vector3 delta = _mounseWorldPos - _origin;
+            float x = Mathf.FloorToInt(delta.x / size.x) * size.x;
+            float z = Mathf.FloorToInt(delta.z / size.z) * size.z;
+            x += (delta.x - x) > (size.x / 2) ? 1 : 0;
+            z += (delta.z - z) > (size.z / 2) ? 1 : 0;
 
-            return pos;
+            return _origin + new Vector3(x, 0, z);
         }
     }
 }

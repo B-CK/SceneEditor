@@ -12,7 +12,7 @@ namespace EditorClass
     public abstract class EditorWindowBase : EditorWindow
     {
 
-        private const bool _disableSerialize = true;
+        private const bool _disableSerialize = false;
 
         /// <summary>
         /// 窗口布局参数可视化对象
@@ -38,7 +38,7 @@ namespace EditorClass
         }
         protected virtual void OnProjectChange()
         {
-            Debug.Log("OnProjectChange");
+            Repaint();
         }
     }
 }
