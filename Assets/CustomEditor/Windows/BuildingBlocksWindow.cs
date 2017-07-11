@@ -26,7 +26,7 @@ namespace EditorClass
 
         Vector2 _winMinSize = new Vector2(400f, 200f);
         Vector2 _winMaxSize = new Vector2(2500f, 200f);
-        GameObject _mapGridObj;
+        MapGrid _mapGridObj;
 
         public static void Init()
         {
@@ -40,9 +40,9 @@ namespace EditorClass
             window.autoRepaintOnSceneChange = true;
             window.Show();
 
-            window._mapGridObj = new GameObject("Map Grid");
-            window._mapGridObj.hideFlags = HideFlags.DontSave | HideFlags.NotEditable;
-            window._mapGridObj.AddComponent<MapGrid>();
+            GameObject gridObj = new GameObject("Map Grid");
+            gridObj.hideFlags = HideFlags.DontSave | HideFlags.NotEditable;
+            window._mapGridObj = gridObj.AddComponent<MapGrid>();
         }
         protected override void OnDisable()
         {
@@ -52,7 +52,7 @@ namespace EditorClass
             _blockPathsDic.Clear();
             _blocksDic.Clear();
             _blockPage.Clear();
-            DestroyImmediate(_mapGridObj);
+            DestroyImmediate(_mapGridObj.gameObject);
             Resources.UnloadUnusedAssets();
         }
 
@@ -66,7 +66,7 @@ namespace EditorClass
         public int _sceneSizeZ = 30;
         public Dictionary<string, int> _counterDic = new Dictionary<string, int>();
         public Vector3 _cubeSize = Vector3.one;
-        public float _prefabAngle = 90f;
+        //public float _prefabAngle = 90f;
         #endregion
 
         #region 界面元素变量
@@ -109,7 +109,7 @@ namespace EditorClass
         public SPEditorScrollView _prefabsScroll;
 
         const int _cellPadding = 4;
-        const int _cellSize = 50;
+        const int _cellSize = 80;
         Vector2 _mPos = Vector2.zero;
 
         class BlockItem
@@ -162,7 +162,6 @@ namespace EditorClass
             //预制菜单
             _prefabBgArea = new SPEditorArea();
             _prefabBgArea._rect = new Rect(_sceneBgArea._rect.width, 0, Screen.width - _sceneBgArea._rect.width, 200f);
-            Debug.Log(Screen.height);
             _prefabBtn = new SPEditorButton();
             _prefabBtn._rect = new Rect(Vector2.zero, Vector2.one * _cellSize);
             _prefabsScroll = new SPEditorScrollView();
@@ -224,8 +223,16 @@ namespace EditorClass
             _prefabBgArea.Draw(() =>
             {
                 blocksMenuIndex = GUILayout.SelectionGrid(_blockMenuIndex, _blocksTypes.ToArray(), _blocksTypes.Count, EditorStyles.toolbarButton);
+                BlocksMenu(blocksMenuIndex);
             });
-            BlocksMenu(blocksMenuIndex);
+
+            Event current = Event.current;
+            //Debug.Log(current.type + "  :  " + current.keyCode);
+            if (current.type == EventType.KeyUp && current.keyCode == KeyCode.Return)
+            {
+                Debug.Log(_cubeSize);
+                _mapGridObj.ResetBlocks();
+            }
         }
 
         void OnClickSceneMenu(int index)
@@ -259,6 +266,8 @@ namespace EditorClass
             _cubeSizeLabel.Draw();
             float cubeSizeX = EditorGUILayout.FloatField(_cubeSize.x);
             float cubeSizeZ = EditorGUILayout.FloatField(_cubeSize.z);
+            cubeSizeX = Mathf.Clamp(cubeSizeX, float.MinValue, float.MaxValue);
+            cubeSizeZ = Mathf.Clamp(cubeSizeZ, float.MinValue, float.MaxValue);
             _cubeSize = new Vector3(cubeSizeX, 0, cubeSizeZ);
             GUILayout.EndHorizontal();
 
@@ -266,17 +275,19 @@ namespace EditorClass
             _cubeGridSizeLabel._style = new GUIStyle(EditorStyles.label);
             _cubeGridSizeLabel._style.name = "矩阵规格";
             _cubeGridSizeLabel.Draw();
-            _sceneSizeX = EditorGUILayout.IntField(_sceneSizeX);
+            int sceneSizeX = EditorGUILayout.IntField(_sceneSizeX);
             GUILayout.Label("X", EditorStyles.label);
-            _sceneSizeZ = EditorGUILayout.IntField(_sceneSizeZ);
+            int sceneSizeZ = EditorGUILayout.IntField(_sceneSizeZ);
+            _sceneSizeX = Mathf.Clamp(sceneSizeX, int.MinValue, int.MaxValue);
+            _sceneSizeZ = Mathf.Clamp(sceneSizeZ, int.MinValue, int.MaxValue);
             GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            _cubeAngleLabel._style = new GUIStyle(EditorStyles.label);
-            _cubeAngleLabel._style.name = "预制角度";
-            _cubeAngleLabel.Draw();
-            _prefabAngle = EditorGUILayout.FloatField(_prefabAngle);
-            GUILayout.EndHorizontal();
+            //GUILayout.BeginHorizontal();
+            //_cubeAngleLabel._style = new GUIStyle(EditorStyles.label);
+            //_cubeAngleLabel._style.name = "预制角度";
+            //_cubeAngleLabel.Draw();
+            //_prefabAngle = EditorGUILayout.FloatField(_prefabAngle);
+            //GUILayout.EndHorizontal();
 
             _sceneNameLabel.Draw();
 
@@ -317,16 +328,17 @@ namespace EditorClass
             ////界面绘制
             _prefabsScroll.Draw(() =>
             {
-                float areaWidth = _prefabBgArea._rect.width - _cellPadding;
+                float areaWidth = _prefabBgArea._rect.width - _cellPadding - 10;
                 float areaHeight = _prefabBgArea._rect.height;
                 int xNum = Mathf.FloorToInt((areaWidth) / (_cellPadding + _cellSize));
                 int yNum = Mathf.CeilToInt(_blockPage.Count / xNum);
-                float px = _cellPadding;
-                float py = _cellPadding;
-                int spacingX = _cellSize + _cellPadding;
-                int spacingY = spacingX;
+                //float px = _cellPadding;
+                //float py = _cellPadding;
+                //int spacingX = _cellSize + _cellPadding;
+                //int spacingY = spacingX;
                 for (int y = 0; y < yNum + 1; y++)
                 {
+                    GUILayout.BeginHorizontal();
                     for (int x = 0; x < xNum; x++)
                     {
                         int amount = y * xNum + x;
@@ -335,19 +347,20 @@ namespace EditorClass
                         BlockItem item = _blockPage[amount];
                         item.texture = item.texture == null ? GeneratePreview(item.prefab) : item.texture;
 
-                        Rect rect = new Rect(px, py, _cellSize, _cellSize - 1);
-                        if (GUI.Button(rect, item.texture))
+                        //Rect rect = new Rect(px, py, _cellSize, _cellSize - 1);
+                        if (GUILayout.Button(item.texture, GUILayout.Width(_cellSize), GUILayout.Height(_cellSize - 1)))
                         {
                             //砖块点击事件处理               
                             //HandleDragAndDrop(item.prefab);
                         }
-                        px += spacingX;
-                        if (px + spacingX > areaWidth)
-                        {
-                            py += spacingY;
-                            px = _cellPadding;
-                        }
+                        //px += spacingX;
+                        //if (px + spacingX > areaWidth)
+                        //{
+                        //    py += spacingY;
+                        //    px = _cellPadding;
+                        //}
                     }
+                    GUILayout.EndHorizontal();
                 }
             });
         }
