@@ -1,9 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SceneEditor.CSharp", "SceneEditor.CSharp.csproj", "{8CC0567A-D3E1-9A22-4F79-EE31A406988F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SceneEditor.CSharp.Editor", "SceneEditor.CSharp.Editor.csproj", "{F11FF24A-4B58-E49A-E038-790C173CA7ED}"
+# Visual Studio 15
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SceneEditor", "SceneEditor.csproj", "{72947C16-0B33-9046-1370-180203687957}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,14 +9,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{8CC0567A-D3E1-9A22-4F79-EE31A406988F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8CC0567A-D3E1-9A22-4F79-EE31A406988F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8CC0567A-D3E1-9A22-4F79-EE31A406988F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8CC0567A-D3E1-9A22-4F79-EE31A406988F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F11FF24A-4B58-E49A-E038-790C173CA7ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F11FF24A-4B58-E49A-E038-790C173CA7ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F11FF24A-4B58-E49A-E038-790C173CA7ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F11FF24A-4B58-E49A-E038-790C173CA7ED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72947C16-0B33-9046-1370-180203687957}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72947C16-0B33-9046-1370-180203687957}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72947C16-0B33-9046-1370-180203687957}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72947C16-0B33-9046-1370-180203687957}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
